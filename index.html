@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Рубка дров</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&family=Golos+Text:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0f1a13; --panel:#1f3024; --panel2:#2a4131; --ink:#f2ead6; --muted:#9fb08f;
+  --wood:#c98a4b; --gold:#f0b848; --crit:#ff8a4d; --line:#36523d;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%}
+body{
+  background:radial-gradient(120% 70% at 50% -10%,#2f5036 0%,var(--bg) 60%) fixed;
+  color:var(--ink);font-family:"Golos Text",system-ui,-apple-system,"Segoe UI",sans-serif;
+  display:flex;flex-direction:column;align-items:center;
+  min-height:100vh;min-height:100dvh;
+  padding:env(safe-area-inset-top,0px) 16px env(safe-area-inset-bottom,0px);
+  user-select:none;touch-action:manipulation;
+}
+header{width:100%;max-width:440px;padding-top:18px;display:flex;flex-direction:column;align-items:center;position:relative}
+.count{font-family:"Unbounded",system-ui,sans-serif;font-weight:800;font-size:clamp(38px,11vw,56px);line-height:1.1;font-variant-numeric:tabular-nums;margin-top:4px}
+.count small{font-size:.4em;color:var(--gold);margin-left:6px;font-weight:600}
+.stats{color:var(--muted);font-size:14px;margin-top:4px}
+.sound{position:absolute;right:0;top:18px;background:var(--panel);border:1px solid var(--line);color:var(--ink);width:40px;height:40px;border-radius:12px;font-size:18px;cursor:pointer}
+
+.stage{
+  position:relative;overflow:hidden;width:100%;max-width:440px;height:min(64vw,320px);touch-action:none;
+  margin:18px 0 14px;border-radius:28px;cursor:pointer;
+  background:
+    radial-gradient(60% 50% at 50% 35%,rgba(255,240,200,.12),transparent 70%),
+    linear-gradient(#2d4b35,#1b2d20);
+  border:1px solid var(--line);
+  box-shadow:inset 0 -60px 60px rgba(0,0,0,.25);
+}
+.ground{position:absolute;left:0;right:0;bottom:0;height:22%;background:linear-gradient(#3c5a2f,#243a1d);border-top:2px solid #4d7340}
+#tree{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible}
+#tree.hit{animation:shake .18s ease-in-out}
+#tree.fall{animation:topple .6s cubic-bezier(.5,0,.9,.5) forwards;transform-origin:50% 92%}
+#tree.grow{animation:grow .35s ease-out}
+@keyframes shake{0%,100%{transform:translateX(0) rotate(0)}25%{transform:translateX(-4px) rotate(-1.5deg)}75%{transform:translateX(4px) rotate(1.5deg)}}
+@keyframes topple{to{transform:rotate(84deg) translateX(30px);opacity:.25}}
+@keyframes grow{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+#tree{transform-origin:50% 92%}
+
+.chip{position:absolute;width:9px;height:5px;background:#e8b47a;border-radius:2px;pointer-events:none;animation:chip .6s ease-out forwards}
+@keyframes chip{to{transform:translate(var(--dx),var(--dy)) rotate(320deg);opacity:0}}
+.float{position:absolute;pointer-events:none;transform:translate(-50%,-50%);font-family:"Unbounded",sans-serif;font-weight:800;font-size:20px;color:#fff;text-shadow:0 2px 0 #000;white-space:nowrap;animation:rise .8s ease-out forwards}
+.float.crit{font-size:28px;color:var(--crit)}
+@keyframes rise{to{transform:translate(-50%,-190%);opacity:0}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01s!important}}
+
+.info{width:100%;max-width:440px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px 16px;margin-bottom:14px}
+.row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:14px;color:var(--muted)}
+.row b{color:var(--ink);font-size:16px}
+.hp{height:12px;background:#0b130d;border-radius:99px;overflow:hidden;margin:10px 0 8px}
+.hp i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#b8642c,var(--gold));transition:width .12s linear}
+
+.shop{width:100%;max-width:440px;padding-bottom:10px}
+.shop h2{font-family:"Unbounded",sans-serif;font-size:15px;margin:6px 4px 10px;font-weight:600;color:var(--muted)}
+.item{display:flex;align-items:center;gap:12px;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin-bottom:10px;color:var(--ink);font:inherit;text-align:left;cursor:pointer;transition:background .15s}
+.item:not(:disabled):active{background:var(--panel2)}
+.item:disabled{opacity:.42;cursor:default}
+.item:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.axe-ico{width:64px;height:58px;object-fit:contain;flex-shrink:0}
+.info-i{flex:1;min-width:0}
+.info-i b{display:block;font-size:16px;margin-bottom:2px}
+.info-i small{color:var(--muted);font-size:13px}
+.side{text-align:right;white-space:nowrap}
+.price{font-family:"Unbounded",sans-serif;font-weight:600;font-size:14px;color:var(--gold);font-variant-numeric:tabular-nums}
+.cnt{font-size:12px;color:var(--muted);margin-top:2px}
+
+footer{width:100%;max-width:440px;text-align:center;padding:6px 0 16px}
+footer button{background:none;border:none;color:var(--muted);font:inherit;font-size:13px;text-decoration:underline;cursor:pointer;padding:8px}
+
+.stage.locked{filter:grayscale(.7);opacity:.55;cursor:not-allowed}
+.stage.locked::after{content:"Рубка на паузе";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:"Unbounded",sans-serif;font-weight:800;font-size:18px;color:#fff;text-shadow:0 2px 0 #000;background:rgba(0,0,0,.25)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--gold);color:#241a08;padding:10px 16px;border-radius:14px;font-weight:600;opacity:0;transition:opacity .4s;pointer-events:none;max-width:90%;text-align:center}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<header>
+  <button class="sound" id="sound" aria-label="Звук">🔊</button>
+  <div class="count"><span id="wood">0</span><small>поленьев</small></div>
+</header>
+
+<div class="stage" id="stage" role="button" aria-label="Рубить дерево">
+  <svg id="tree" viewBox="0 0 200 240" preserveAspectRatio="xMidYMax meet"></svg>
+  <div class="ground"></div>
+</div>
+
+<div class="info">
+  <div class="row"><span id="tname"></span><span id="reward"></span></div>
+  <div class="hp"><i id="hpfill"></i></div>
+  <div class="row"><span>Прочность</span><span id="hpnum"></span></div>
+</div>
+
+<div class="shop">
+  <h2>Улучшения</h2>
+  <div id="items"></div>
+</div>
+
+<footer><button id="reload">Перезагрузить игру</button> · <button id="reset">Сбросить прогресс</button></footer>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+const TIERS = [
+  { name: 'Берёза',       trunk: '#ece4cf', crown: '#8fbf5f', crown2: '#77aa4e' },
+  { name: 'Сосна',        trunk: '#6b4428', crown: '#2f6b3f', crown2: '#25583a' },
+  { name: 'Дуб',          trunk: '#5c3b22', crown: '#6f9a3f', crown2: '#5a8233' },
+  { name: 'Клён',         trunk: '#6e4023', crown: '#c8502e', crown2: '#a9421f' },
+  { name: 'Секвойя',      trunk: '#7a3f24', crown: '#2c6461', crown2: '#23514e' },
+  { name: 'Золотой дуб',  trunk: '#8a5a1f', crown: '#e0b13c', crown2: '#c4952a' },
+];
+
+const UP = [
+  { id: 'axe',     name: 'Острый топор',     desc: '+1 урона за удар',         base: 15 },
+  { id: 'sharp',   name: 'Точильный камень', desc: '+1,5% шанса на крит',        base: 120 },
+  { id: 'lumber',  name: 'Лесоруб',          desc: 'Рубит сам: 1 урона в сек', base: 60,    dps: 1 },
+  { id: 'saw',     name: 'Бензопила',        desc: 'Зажми на дереве: 20 урона в сек', base: 450,   dps: 8 },
+  { id: 'tractor', name: 'Трактор с ковшом', desc: 'Удар раз в 5 сек: 60 урона', base: 3000 },
+  { id: 'mill',    name: 'Лесопилка',        desc: 'Удар раз в 2 сек: 40 урона', base: 25000 },
+];
+
+const KEY = 'drova-v1';
+let S = { wood: 0, chopped: 0, level: 0, owned: {}, hp: null, sound: true, seen: Date.now() };
+try {
+  const v = JSON.parse(localStorage.getItem(KEY) || 'null');
+  if (v) S = { ...S, ...v, owned: v.owned || {} };
+} catch (e) {}
+
+const owned = id => S.owned[id] || 0;
+const cost = u => Math.ceil(u.base * Math.pow(1.15, owned(u.id)));
+const power = () => 1 + owned('axe');
+const critChance = () => Math.min(0.4, 0.04 + 0.015 * owned('sharp'));
+const dps = () => UP.reduce((s, u) => s + (u.dps || 0) * owned(u.id), 0);
+
+const fmt = n => n >= 1e6 ? (n / 1e6).toFixed(2) + ' млн'
+              : n >= 1e4 ? (n / 1e3).toFixed(1) + ' тыс'
+              : Math.floor(n).toLocaleString('ru-RU');
+
+function makeTree(L) {
+  const tier = Math.floor(Math.random() * (Math.min(Math.floor(L / 4), TIERS.length - 1) + 1));
+  // durability is picked at random: 100, 500 or 1000;
+  // from the 50th felled tree on: 50 000, 100 000 or 500 000
+  const DURABILITY = L >= 50 ? [50000, 100000, 500000] : [100, 500, 1000];
+  const maxHp = DURABILITY[Math.floor(Math.random() * DURABILITY.length)];
+  return {
+    tier,
+    maxHp,
+    hp: maxHp,
+    // from the 100th felled tree on a tree gives 50 000 or 100 000, before that 500
+    reward: L >= 100 ? [50000, 100000][Math.floor(Math.random() * 2)] : 500,
+  };
+}
+
+let tree = makeTree(S.level);
+if (S.tier != null) tree.tier = S.tier;
+if (S.maxHp != null) tree.maxHp = S.maxHp;
+if (S.hp != null) tree.hp = Math.min(tree.maxHp, Math.max(1, S.hp));
+
+function save() {
+  S.hp = tree.hp;
+  S.tier = tree.tier;
+  S.maxHp = tree.maxHp;
+  S.seen = Date.now();
+  try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {}
+}
+
+function toast(text) {
+  const t = $('toast');
+  t.textContent = text;
+  t.classList.add('show');
+  clearTimeout(toast.h);
+  toast.h = setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// Offline progress: the trees chop themselves while the page was closed (up to 8 hours)
+(function offline() {
+  const away = Math.min((Date.now() - S.seen) / 1000, 8 * 3600);
+  let dmg = dps() * away, gained = 0, guard = 0;
+  while (dmg > 0 && guard++ < 100000) {
+    if (dmg >= tree.hp) {
+      dmg -= tree.hp;
+      gained += tree.reward;
+      S.chopped++;
+      S.level++;
+      tree = makeTree(S.level);
+    } else {
+      tree.hp -= dmg;
+      dmg = 0;
+    }
+  }
+  S.wood += gained;
+  if (gained > 0 && away > 5) setTimeout(() => toast(`Пока тебя не было, ты нарубил ${fmt(gained)} 🪵`), 400);
+})();
+
+// Sound: short noise burst through a bandpass filter, no audio files needed
+let ac = null;
+function sfx(freq = 1100, len = 0.12, vol = 1) {
+  if (!S.sound) return;
+  try {
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    const n = Math.floor(ac.sampleRate * len);
+    const buf = ac.createBuffer(1, n, ac.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 3) * vol;
+    const src = ac.createBufferSource();
+    src.buffer = buf;
+    const f = ac.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.value = freq * (0.9 + Math.random() * 0.2);
+    src.connect(f);
+    f.connect(ac.destination);
+    src.start();
+  } catch (e) {}
+}
+function buySfx() {
+  if (!S.sound) return;
+  try {
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    const t = ac.currentTime;
+    [660, 990].forEach((f, i) => {
+      const o = ac.createOscillator();
+      const g = ac.createGain();
+      o.type = 'triangle';
+      o.frequency.value = f;
+      const s = t + i * 0.09;
+      g.gain.setValueAtTime(0.0001, s);
+      g.gain.exponentialRampToValueAtTime(0.25, s + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, s + 0.25);
+      o.connect(g);
+      g.connect(ac.destination);
+      o.start(s);
+      o.stop(s + 0.27);
+    });
+  } catch (e) {}
+}
+function setSoundIcon() { $('sound').textContent = S.sound ? '🔊' : '🔇'; }
+$('sound').addEventListener('click', () => { S.sound = !S.sound; setSoundIcon(); save(); });
+setSoundIcon();
+
+// Drawing
+const svg = $('tree');
+// Each tier has its own silhouette
+const SHAPES = ['birch', 'pine', 'oak', 'maple', 'sequoia', 'oak'];
+function treeArt(shape, t, tier) {
+  const ground = '<ellipse cx="100" cy="232" rx="38" ry="7" fill="#1a2c17" opacity=".5"/>';
+  const trunk = t.trunk, c = t.crown, c2 = t.crown2;
+  switch (shape) {
+    case 'birch':
+      return ground +
+        `<rect x="95" y="100" width="10" height="134" rx="5" fill="${trunk}"/>` +
+        '<rect x="97" y="130" width="3" height="3" fill="#333"/><rect x="101" y="160" width="3" height="2" fill="#333"/><rect x="96" y="192" width="3" height="3" fill="#333"/>' +
+        `<ellipse cx="100" cy="58" rx="34" ry="46" fill="${c}"/>` +
+        `<ellipse cx="76" cy="92" rx="18" ry="22" fill="${c2}"/>` +
+        `<ellipse cx="126" cy="94" rx="18" ry="20" fill="${c2}"/>`;
+    case 'pine':
+      return ground +
+        `<rect x="95" y="160" width="10" height="72" fill="${trunk}"/>` +
+        `<polygon points="100,6 134,74 66,74" fill="${c}"/>` +
+        `<polygon points="100,40 146,118 54,118" fill="${c2}"/>` +
+        `<polygon points="100,84 156,164 44,164" fill="${c}"/>`;
+    case 'maple':
+      return ground +
+        `<rect x="94" y="130" width="12" height="104" rx="3" fill="${trunk}"/>` +
+        `<path d="M100 150 L76 116 M100 138 L124 110" stroke="${trunk}" stroke-width="6" stroke-linecap="round"/>` +
+        `<circle cx="100" cy="92" r="46" fill="${c}"/>` +
+        `<circle cx="72" cy="108" r="28" fill="${c2}"/>` +
+        `<circle cx="130" cy="104" r="30" fill="${c2}"/>` +
+        `<circle cx="100" cy="62" r="24" fill="${c2}"/>`;
+    case 'sequoia':
+      return ground +
+        `<path d="M86 230 L94 120 L106 120 L114 230 Z" fill="${trunk}"/>` +
+        `<ellipse cx="100" cy="92" rx="26" ry="86" fill="${c}"/>` +
+        `<ellipse cx="100" cy="120" rx="36" ry="48" fill="${c2}"/>`;
+    default: { // oak (and golden oak)
+      const sparkles = tier === 5
+        ? '<circle cx="78" cy="78" r="2" fill="#fff6c2"/><circle cx="122" cy="110" r="2" fill="#fff6c2"/><circle cx="96" cy="128" r="2" fill="#fff6c2"/><circle cx="60" cy="122" r="1.6" fill="#fff6c2"/>'
+        : '';
+      return ground +
+        `<path d="M90 230 L94 150 L106 150 L110 230 Z" fill="${trunk}"/>` +
+        `<path d="M100 160 L80 136 M100 160 L122 138" stroke="${trunk}" stroke-width="5" stroke-linecap="round"/>` +
+        `<circle cx="100" cy="96" r="50" fill="${c}"/>` +
+        `<circle cx="62" cy="122" r="34" fill="${c2}"/>` +
+        `<circle cx="138" cy="122" r="34" fill="${c2}"/>` +
+        `<circle cx="100" cy="142" r="40" fill="${c2}"/>` +
+        sparkles;
+    }
+  }
+}
+
+function drawTree() {
+  const t = TIERS[tree.tier];
+  svg.innerHTML = treeArt(SHAPES[tree.tier], t, tree.tier);
+}
+drawTree();
+
+// Effects
+function spawnChips(x, y) {
+  const stage = $('stage');
+  for (let i = 0; i < 7; i++) {
+    const c = document.createElement('i');
+    c.className = 'chip';
+    c.style.left = x + 'px';
+    c.style.top = y + 'px';
+    c.style.setProperty('--dx', (Math.random() * 120 - 60) + 'px');
+    c.style.setProperty('--dy', (-Math.random() * 90 - 20) + 'px');
+    stage.appendChild(c);
+    setTimeout(() => c.remove(), 650);
+  }
+}
+function spawnFloat(x, y, text, crit) {
+  const f = document.createElement('span');
+  f.className = 'float' + (crit ? ' crit' : '');
+  f.textContent = text;
+  f.style.left = x + 'px';
+  f.style.top = y + 'px';
+  $('stage').appendChild(f);
+  setTimeout(() => f.remove(), 800);
+}
+
+// Falling
+let falling = false;
+function fallTree() {
+  if (falling) return;
+  falling = true;
+  S.wood += tree.reward;
+  S.chopped++;
+  S.level++;
+  const gain = tree.reward;
+  svg.classList.remove('hit');
+  svg.classList.add('fall');
+  sfx(320, 0.4, 1.4);
+  setTimeout(() => {
+    tree = makeTree(S.level);
+    drawTree();
+    svg.classList.remove('fall');
+    void svg.offsetWidth;
+    svg.classList.add('grow');
+    falling = false;
+    save();
+    render();
+    spawnFloat(100, 60, '+' + fmt(gain) + ' 🪵', false);
+  }, 620);
+}
+svg.addEventListener('animationend', e => {
+  if (e.animationName === 'grow' || e.animationName === 'shake') svg.classList.remove('grow', 'hit');
+});
+
+// Clicking
+let holding = false;
+let lastHoldFx = 0;
+let millTimer = 0;
+let tractorTimer = 0;
+
+// Auto-clicker detection (heuristic)
+// 1) events created by scripts are not "trusted" by the browser
+// 2) more than 14 taps per second over 3 seconds is not human
+// 3) a rhythm that is almost perfectly even (very low spread of intervals) is a bot
+let tapTimes = [];
+let lockedUntil = 0;
+let lockTimer = null;
+
+function flagAutoclicker(reason) {
+  S.strikes = (S.strikes || 0) + 1;
+  const sec = Math.min(60, 10 * Math.pow(2, S.strikes - 1));
+  lockedUntil = performance.now() + sec * 1000;
+  tapTimes = [];
+  $('stage').classList.add('locked');
+  clearTimeout(lockTimer);
+  lockTimer = setTimeout(() => $('stage').classList.remove('locked'), sec * 1000);
+  toast(`Обнаружен автокликер (${reason}). Рубка заблокирована на ${sec} сек.`);
+  save();
+}
+
+function registerTap(e, now) {
+  if (now < lockedUntil) return false;
+  if (!e.isTrusted) { flagAutoclicker('скрипт'); return false; }
+
+  tapTimes.push(now);
+  tapTimes = tapTimes.filter(t => now - t <= 3000);
+
+  if (tapTimes.length > 14 * 3) { flagAutoclicker('слишком быстро'); return false; }
+
+  if (tapTimes.length >= 20) {
+    const recent = tapTimes.slice(-20);
+    const gaps = [];
+    for (let i = 1; i < recent.length; i++) gaps.push(recent[i] - recent[i - 1]);
+    const mean = gaps.reduce((a, b) => a + b, 0) / gaps.length;
+    const sd = Math.sqrt(gaps.reduce((a, b) => a + (b - mean) ** 2, 0) / gaps.length);
+    if (mean < 300 && sd < 8) { flagAutoclicker('ровный ритм'); return false; }
+  }
+  return true;
+}
+
+$('stage').addEventListener('pointerdown', e => {
+  if (falling) return;
+  const now = performance.now();
+  if (!registerTap(e, now)) return;
+  if (owned('saw') > 0) {
+    holding = true;
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
+  }
+  const r = $('stage').getBoundingClientRect();
+  const x = e.clientX - r.left, y = e.clientY - r.top;
+  const crit = Math.random() < critChance();
+  const dmg = power() * (crit ? 5 : 1);
+
+  tree.hp -= dmg;
+  spawnChips(x, y);
+  spawnFloat(x, y - 20, (crit ? 'КРИТ! -' : '-') + fmt(dmg), crit);
+
+  svg.classList.remove('hit');
+  void svg.offsetWidth;
+  svg.classList.add('hit');
+  sfx(crit ? 1600 : 1100, crit ? 0.18 : 0.12, crit ? 1.4 : 1);
+
+  if (tree.hp <= 0) fallTree();
+  render();
+});
+
+// Passive chopping
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min((now - last) / 1000, 1);
+  last = now;
+  const d = dps();
+  if (!falling && d > 0) {
+    tree.hp -= d * dt;
+    if (tree.hp <= 0) fallTree();
+  }
+  // Sawmill: one strike every 2 seconds, 40 damage per sawmill
+  if (!falling && owned('mill') > 0) {
+    millTimer += dt;
+    while (millTimer >= 2 && !falling) {
+      millTimer -= 2;
+      tree.hp -= 40 * owned('mill');
+      if (tree.hp <= 0) fallTree();
+    }
+  }
+  // Tractor: one bucket strike every 5 seconds, 60 damage per tractor
+  if (!falling && owned('tractor') > 0) {
+    tractorTimer += dt;
+    while (tractorTimer >= 5 && !falling) {
+      tractorTimer -= 5;
+      tree.hp -= 60 * owned('tractor');
+      if (tree.hp <= 0) fallTree();
+    }
+  }
+  if (holding && now < lockedUntil) holding = false;
+  // Chainsaw: while the stage is held, the saw cuts continuously
+  if (holding && !falling && owned('saw') > 0) {
+    tree.hp -= 20 * owned('saw') * dt;
+    if (now - lastHoldFx > 180) {
+      lastHoldFx = now;
+      const st = $('stage');
+      spawnChips(st.clientWidth / 2 + (Math.random() * 40 - 20), st.clientHeight * 0.6);
+      sfx(900, 0.1, 0.6);
+      svg.classList.remove('hit');
+      void svg.offsetWidth;
+      svg.classList.add('hit');
+    }
+    if (tree.hp <= 0) fallTree();
+  }
+  requestAnimationFrame(loop);
+}
+const endHold = () => { holding = false; };
+window.addEventListener('pointerup', endHold);
+window.addEventListener('pointercancel', endHold);
+window.addEventListener('blur', endHold);
+requestAnimationFrame(loop);
+
+// Shop
+const items = $('items');
+UP.forEach(u => {
+  const b = document.createElement('button');
+  b.className = 'item';
+  b.dataset.id = u.id;
+  b.innerHTML = `
+    ${u.id === 'axe' ? `<svg class="axe-ico" viewBox="0 0 64 58" aria-hidden="true"><defs><linearGradient id="axeWood" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c58a4e"/><stop offset="1" stop-color="#6b4220"/></linearGradient><linearGradient id="axeSteel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e6edf1"/><stop offset=".45" stop-color="#9ba7af"/><stop offset="1" stop-color="#58626a"/></linearGradient></defs><ellipse cx="32" cy="56" rx="18" ry="2" fill="#000" opacity=".25"/><path d="M15 53 L43 16" stroke="url(#axeWood)" stroke-width="7" stroke-linecap="round"/><path d="M17 50 L41 19" stroke="#e7b77e" stroke-width="1.2" stroke-linecap="round" opacity=".45"/><path d="M18 46 L23 40" stroke="#2e1c10" stroke-width="5" stroke-linecap="round"/><path d="M36 13 L44 4 L51 9 L47 21 L38 22 Z" fill="#3c444b" stroke="#22282d" stroke-width="1.2" stroke-linejoin="round"/><path d="M45 6 Q55 -1 60 8 Q65 17 58 27 Q53 31 47 24 Z" fill="url(#axeSteel)" stroke="#262c31" stroke-width="1.5" stroke-linejoin="round"/><path d="M55 5 Q63 13 58 25" fill="none" stroke="#f4f8fa" stroke-width="1.4" stroke-linecap="round" opacity=".85"/><path d="M47 24 Q53 31 58 27" fill="none" stroke="#2a3036" stroke-width="1.6" stroke-linecap="round"/><path d="M49 12 L52 10" stroke="#fff" stroke-width=".8" opacity=".5"/><path d="M51 18 L54 16" stroke="#fff" stroke-width=".8" opacity=".4"/></svg>` : ''}
+    ${u.id === 'saw' ? `<svg class="axe-ico" viewBox="0 0 64 58" aria-hidden="true"><rect x="3" y="25" width="34" height="7" rx="3.5" fill="#9aa3aa" stroke="#2b3136" stroke-width="1.2"/><rect x="6" y="22" width="28" height="3" rx="1.5" fill="#3a4147"/><path d="M8 23.5 L36 23.5" stroke="#c7ced4" stroke-width="1" stroke-dasharray="2 2"/><circle cx="36" cy="28.5" r="3" fill="#9aa3aa" stroke="#2b3136" stroke-width="1.2"/><path d="M32 21 Q36 15 45 16 L51 20 L53 40 Q51 47 43 46 L33 43 Z" fill="#e8732a" stroke="#8c3e12" stroke-width="1.4" stroke-linejoin="round"/><path d="M38 19 L40 42" stroke="#b8521a" stroke-width="1.6" opacity=".6"/><path d="M44 22 L48 24 M44 27 L49 29 M44 32 L49 34" stroke="#b8521a" stroke-width="1.2" stroke-linecap="round" opacity=".7"/><circle cx="42" cy="38" r="2.5" fill="#2b3136"/><path d="M47 16 Q60 10 61 24 L59 38 Q57 44 51 42" fill="none" stroke="#2b3136" stroke-width="3.5" stroke-linecap="round"/><path d="M49 22 L56 22" stroke="#2b3136" stroke-width="2" stroke-linecap="round"/></svg>` : ''}
+    ${u.id === 'tractor' ? `<svg class="axe-ico" viewBox="0 0 64 58" aria-hidden="true"><path d="M42 32 L55 14" stroke="#4a4f55" stroke-width="3" stroke-linecap="round"/><path d="M38 26 L51 16" stroke="#4a4f55" stroke-width="2.4" stroke-linecap="round"/><path d="M49 12 L63 9 L61 21 Q56 27 48 22 Z" fill="#8a9097" stroke="#3b3f44" stroke-width="1.4" stroke-linejoin="round"/><path d="M52 14 L60 12" stroke="#c7ced4" stroke-width="1.2" stroke-linecap="round" opacity=".7"/><path d="M10 32 L36 32 L38 26 L52 26 L52 38 L10 38 Z" fill="#3f8a3a" stroke="#2a5e27" stroke-width="1.2" stroke-linejoin="round"/><rect x="38" y="27" width="13" height="10" rx="2" fill="#4c9d45" stroke="#2a5e27" stroke-width="1"/><rect x="41" y="17" width="2.5" height="10" fill="#2b2f33"/><rect x="16" y="14" width="15" height="18" rx="2" fill="#3f8a3a" stroke="#2a5e27" stroke-width="1.2"/><rect x="19" y="17" width="9" height="7" rx="1" fill="#bfe3ef" stroke="#2a5e27" stroke-width=".8"/><circle cx="20" cy="42" r="12" fill="#2b2f33"/><circle cx="20" cy="42" r="5" fill="#c7cdd2"/><path d="M20 35 L20 49 M13 42 L27 42" stroke="#8a9097" stroke-width="1.2"/><circle cx="48" cy="44" r="7" fill="#2b2f33"/><circle cx="48" cy="44" r="2.5" fill="#c7cdd2"/></svg>` : ''}
+    ${u.id === 'mill' ? `<svg class="axe-ico" viewBox="0 0 64 58" aria-hidden="true"><rect x="4" y="46" width="56" height="5" rx="2" fill="#5c3b22"/><rect x="8" y="51" width="4" height="6" fill="#3e2716"/><rect x="52" y="51" width="4" height="6" fill="#3e2716"/><rect x="8" y="36" width="26" height="10" rx="3" fill="#a06a3a" stroke="#6b4220" stroke-width="1.2"/><ellipse cx="9" cy="41" rx="3" ry="5" fill="#e8c28e" stroke="#6b4220" stroke-width="1.2"/><circle cx="9" cy="41" r="1.4" fill="none" stroke="#6b4220" stroke-width=".8"/><path d="M16 38 L30 38 M18 43 L32 43" stroke="#6b4220" stroke-width=".9" opacity=".5"/><circle cx="30" cy="33" r="1" fill="#e8c28e"/><circle cx="33" cy="30" r="1.2" fill="#e8c28e"/><circle cx="27" cy="29" r=".9" fill="#e8c28e"/><circle cx="44" cy="26" r="15" fill="#aeb7be" stroke="#5d666e" stroke-width="1.6"/><circle cx="44" cy="26" r="16.6" fill="none" stroke="#5d666e" stroke-width="3" stroke-dasharray="2.2 2.2"/><circle cx="44" cy="26" r="8" fill="none" stroke="#8a9097" stroke-width="1.2"/><circle cx="44" cy="26" r="3.5" fill="#3a4147"/><path d="M37 21 L41 19" stroke="#fff" stroke-width="1" opacity=".5" stroke-linecap="round"/><rect x="42.5" y="4" width="3" height="8" fill="#4a4f55"/></svg>` : ''}
+    ${u.id === 'lumber' ? `<svg class="axe-ico" viewBox="0 0 64 58" aria-hidden="true"><path d="M10 58 L13 42 Q32 30 51 42 L54 58 Z" fill="#b5452e"/><path d="M18 46 L46 46 M16 52 L48 52" stroke="#3b2a1f" stroke-width="1.6" opacity=".45"/><path d="M24 40 L24 58 M34 38 L34 58 M44 40 L44 58" stroke="#3b2a1f" stroke-width="1.4" opacity=".35"/><path d="M28 42 L28 58 M38 42 L38 58" stroke="#e8c27a" stroke-width="1" opacity=".35"/><rect x="28" y="29" width="8" height="9" fill="#e0b38a"/><circle cx="32" cy="22" r="11" fill="#f0c9a0"/><circle cx="28" cy="21" r="1.2" fill="#2b1d12"/><circle cx="36" cy="21" r="1.2" fill="#2b1d12"/><path d="M22 25 Q32 42 42 25 Q40 33 32 34 Q24 33 22 25 Z" fill="#6b4a2a"/><path d="M19 16 Q32 3 45 16 Z" fill="#2e5d3a"/><path d="M19 16 L50 16 L47 19.5 L20 19.5 Z" fill="#24482d"/><path d="M24 11 Q32 8 40 11" fill="none" stroke="#4d8a5c" stroke-width="1.2" opacity=".6"/></svg>` : ''}
+    ${u.id === 'sharp' ? `<svg class="axe-ico" viewBox="0 0 64 58" aria-hidden="true"><path d="M8 22 L50 10 L58 26 L16 38 Z" fill="#8a9097" stroke="#3b3f44" stroke-width="1.5" stroke-linejoin="round"/><path d="M16 38 L58 26 L58 38 L16 50 Z" fill="#4f545a" stroke="#3b3f44" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 22 L16 38 L16 50 L8 34 Z" fill="#62676d" stroke="#3b3f44" stroke-width="1.5" stroke-linejoin="round"/><circle cx="28" cy="26" r="1" fill="#5f646a"/><circle cx="36" cy="22" r="1" fill="#5f646a"/><circle cx="42" cy="30" r="1" fill="#5f646a"/><circle cx="30" cy="34" r="1" fill="#5f646a"/></svg>` : ''}
+    <div class="info-i"><b>${u.name}</b><small>${u.desc}</small></div>
+    <div class="side"><div class="price"></div><div class="cnt"></div></div>`;
+  b.addEventListener('click', () => buy(u));
+  items.appendChild(b);
+});
+
+function buy(u) {
+  const c = cost(u);
+  if (S.wood < c) return;
+  S.wood -= c;
+  S.owned[u.id] = owned(u.id) + 1;
+  buySfx();
+  save();
+  render();
+}
+
+function render() {
+  const t = TIERS[tree.tier];
+  $('wood').textContent = fmt(S.wood);
+  $('tname').innerHTML = `<b>${t.name}</b> · дерево №${S.chopped + 1}`;
+  $('reward').textContent = `${fmt(tree.reward)} 🪵` + (holding && owned('saw') > 0 ? ' · пилим!' : '');
+  $('hpfill').style.width = Math.max(0, (tree.hp / tree.maxHp) * 100) + '%';
+  $('hpnum').textContent = `${fmt(Math.max(0, tree.hp))} / ${fmt(tree.maxHp)}`;
+  UP.forEach(u => {
+    const b = items.querySelector(`[data-id="${u.id}"]`);
+    const c = cost(u);
+    b.disabled = S.wood < c;
+    b.querySelector('.price').textContent = fmt(c) + ' 🪵';
+    b.querySelector('.cnt').textContent = `куплено: ${owned(u.id)}`;
+  });
+}
+
+setInterval(render, 200);
+setInterval(save, 2000);
+window.addEventListener('pagehide', save);
+
+$('reload').addEventListener('click', () => {
+  save();
+  location.reload();
+});
+
+$('reset').addEventListener('click', () => {
+  if (!confirm('Точно сбросить прогресс?')) return;
+  S = { wood: 0, chopped: 0, level: 0, owned: {}, hp: null, sound: S.sound, seen: Date.now() };
+  tree = makeTree(0);
+  drawTree();
+  save();
+  render();
+});
+
+render();
+</script>
+</body>
+</html>
